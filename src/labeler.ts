@@ -1,16 +1,21 @@
-import {GitHub} from '@actions/github/lib/utils'
-import {Config} from './config'
+import {
+  concat,
+  difference,
+  uniq
+} from 'lodash'
 
-import {uniq, concat, difference} from 'lodash'
-import title from './matcher/title'
-import body from './matcher/body'
-import comment from './matcher/comment'
-import branch from './matcher/branch'
+import * as github from '@actions/github'
+import {GitHub} from '@actions/github/lib/utils'
+
+import {Config} from './config'
+import author from './matcher/author'
 import baseBranch from './matcher/base-branch'
+import body from './matcher/body'
+import branch from './matcher/branch'
+import comment from './matcher/comment'
 import commits from './matcher/commits'
 import files from './matcher/files'
-import author from './matcher/author'
-import * as github from '@actions/github'
+import title from './matcher/title'
 
 /**
  * @param {string[]} labels that are newly derived
@@ -34,6 +39,15 @@ export function mergeLabels(labels: string[], config: Config): string[] {
       )
     })
     .map(value => value.label)
+
+  console.log(
+    'mergeLabels: labels =',
+    labels,
+    '\ncurrents=',
+    currents,
+    '\nremovals =',
+    removals
+  );
 
   return difference(uniq(concat(labels, currents)), removals)
 }

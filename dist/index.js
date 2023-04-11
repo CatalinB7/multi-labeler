@@ -271,15 +271,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.labels = exports.mergeLabels = void 0;
 const lodash_1 = __nccwpck_require__(250);
-const title_1 = __importDefault(__nccwpck_require__(9961));
-const body_1 = __importDefault(__nccwpck_require__(5404));
-const comment_1 = __importDefault(__nccwpck_require__(5921));
-const branch_1 = __importDefault(__nccwpck_require__(5832));
+const github = __importStar(__nccwpck_require__(5438));
+const author_1 = __importDefault(__nccwpck_require__(8432));
 const base_branch_1 = __importDefault(__nccwpck_require__(8837));
+const body_1 = __importDefault(__nccwpck_require__(5404));
+const branch_1 = __importDefault(__nccwpck_require__(5832));
+const comment_1 = __importDefault(__nccwpck_require__(5921));
 const commits_1 = __importDefault(__nccwpck_require__(747));
 const files_1 = __importDefault(__nccwpck_require__(1180));
-const author_1 = __importDefault(__nccwpck_require__(8432));
-const github = __importStar(__nccwpck_require__(5438));
+const title_1 = __importDefault(__nccwpck_require__(9961));
 /**
  * @param {string[]} labels that are newly derived
  * @param {Config} config of the labels
@@ -298,6 +298,7 @@ function mergeLabels(labels, config) {
             currents.includes(label.label));
     })
         .map(value => value.label);
+    console.log('mergeLabels: labels =', labels, '\ncurrents=', currents, '\nremovals =', removals);
     return lodash_1.difference(lodash_1.uniq(lodash_1.concat(labels, currents)), removals);
 }
 exports.mergeLabels = mergeLabels;
@@ -363,9 +364,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const github = __importStar(__nccwpck_require__(5438));
-const labeler_1 = __nccwpck_require__(5272);
-const config_1 = __nccwpck_require__(88);
 const checks_1 = __nccwpck_require__(2321);
+const config_1 = __nccwpck_require__(88);
+const labeler_1 = __nccwpck_require__(5272);
 const githubToken = core.getInput('github-token');
 const configPath = core.getInput('config-path', { required: true });
 const configRepo = core.getInput('config-repo');
@@ -376,15 +377,17 @@ if (!(payload === null || payload === void 0 ? void 0 : payload.number)) {
 }
 function addLabels(labels) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.setOutput('labels', labels);
+        core.setOutput('addLabels labels =', labels);
         if (!labels.length) {
             return;
         }
+        yield new Promise(resolve => setTimeout(resolve, 15000));
+        console.log('adding labels =', labels);
         yield client.issues.addLabels({
             owner: github.context.repo.owner,
             repo: github.context.repo.repo,
             issue_number: payload.number,
-            labels: labels
+            labels
         });
     });
 }
@@ -394,22 +397,26 @@ function removeLabels(labels, config) {
         if (!['pull_request', 'pull_request_target', 'issue'].includes(eventName)) {
             return [];
         }
+        console.log('removeLabels config =', config, '\nlabels=', labels);
         return Promise.all((config.labels || [])
             .filter(label => {
             // Is sync, not matched in final set of labels
             return label.sync && !labels.includes(label.label);
         })
             .map(label => {
-            return client.issues
-                .removeLabel({
-                owner: github.context.repo.owner,
-                repo: github.context.repo.repo,
-                issue_number: payload.number,
-                name: label.label
-            })
-                .catch(ignored => {
-                return undefined;
-            });
+            return setTimeout(() => {
+                console.log('removing label =', label.label);
+                client.issues
+                    .removeLabel({
+                    owner: github.context.repo.owner,
+                    repo: github.context.repo.repo,
+                    issue_number: payload.number,
+                    name: label.label
+                })
+                    .catch(ignored => {
+                    return undefined;
+                });
+            }, 15000);
         }));
     });
 }
@@ -428,7 +435,7 @@ function addChecks(checks) {
                 client.repos.createCommitStatus({
                     owner: github.context.repo.owner,
                     repo: github.context.repo.repo,
-                    sha: sha,
+                    sha,
                     context: check.context,
                     state: check.state,
                     description: check.description,
@@ -442,6 +449,7 @@ config_1.getConfig(client, configPath, configRepo)
     .then((config) => __awaiter(void 0, void 0, void 0, function* () {
     const labeled = yield labeler_1.labels(client, config);
     const finalLabels = labeler_1.mergeLabels(labeled, config);
+    console.log('config =', config, '\nlabeled = ', labeled, '\nfinalLabels =', finalLabels);
     return Promise.all([
         addLabels(finalLabels),
         removeLabels(finalLabels, config),

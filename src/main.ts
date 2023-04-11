@@ -1,18 +1,18 @@
-import * as core from '@actions/core';
-import * as github from '@actions/github';
+import * as core from '@actions/core'
+import * as github from '@actions/github'
 
 import {
   checks,
-  StatusCheck,
-} from './checks';
+  StatusCheck
+} from './checks'
 import {
   Config,
-  getConfig,
-} from './config';
+  getConfig
+} from './config'
 import {
   labels,
-  mergeLabels,
-} from './labeler';
+  mergeLabels
+} from './labeler'
 
 const githubToken = core.getInput('github-token')
 const configPath = core.getInput('config-path', {required: true})
@@ -29,21 +29,20 @@ if (!payload?.number) {
 }
 
 async function addLabels(labels: string[]): Promise<void> {
-  core.setOutput('labels', labels)
+  core.setOutput('addLabels labels =', labels)
 
   if (!labels.length) {
     return
   }
 
-  console.log('before promise', new Date().getTime())
-  await new Promise((resolve) => setTimeout(resolve, 15000));
-  console.log('after promise', new Date().getTime())
+  await new Promise(resolve => setTimeout(resolve, 15000))
+  console.log('adding labels =', labels);
 
   await client.issues.addLabels({
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
     issue_number: payload!.number,
-    labels: labels
+    labels
   })
 }
 
@@ -55,7 +54,7 @@ async function removeLabels(
   if (!['pull_request', 'pull_request_target', 'issue'].includes(eventName)) {
     return []
   }
-
+  console.log('removeLabels config =', config, '\nlabels=', labels);
   return Promise.all(
     (config.labels || [])
       .filter(label => {
@@ -63,19 +62,19 @@ async function removeLabels(
         return label.sync && !labels.includes(label.label)
       })
       .map(label => {
-        
         return setTimeout(() => {
+          console.log('removing label =', label.label);
           client.issues
-          .removeLabel({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            issue_number: payload!.number,
-            name: label.label
-          })
-          .catch(ignored => {
-            return undefined
-          });
-        }, 15000);
+            .removeLabel({
+              owner: github.context.repo.owner,
+              repo: github.context.repo.repo,
+              issue_number: payload!.number,
+              name: label.label
+            })
+            .catch(ignored => {
+              return undefined
+            })
+        }, 15000)
       })
   )
 }
@@ -95,7 +94,7 @@ async function addChecks(checks: StatusCheck[]): Promise<void> {
       client.repos.createCommitStatus({
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
-        sha: sha,
+        sha,
         context: check.context,
         state: check.state,
         description: check.description,
@@ -109,7 +108,7 @@ getConfig(client, configPath, configRepo)
   .then(async config => {
     const labeled = await labels(client, config)
     const finalLabels = mergeLabels(labeled, config)
-
+    console.log('config =', config, '\nlabeled = ', labeled, '\nfinalLabels =', finalLabels);
     return Promise.all([
       addLabels(finalLabels),
       removeLabels(finalLabels, config),
