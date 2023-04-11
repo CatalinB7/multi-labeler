@@ -1,8 +1,18 @@
-import * as core from '@actions/core'
-import * as github from '@actions/github'
-import {labels, mergeLabels} from './labeler'
-import {Config, getConfig} from './config'
-import {checks, StatusCheck} from './checks'
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+
+import {
+  checks,
+  StatusCheck,
+} from './checks';
+import {
+  Config,
+  getConfig,
+} from './config';
+import {
+  labels,
+  mergeLabels,
+} from './labeler';
 
 const githubToken = core.getInput('github-token')
 const configPath = core.getInput('config-path', {required: true})
@@ -24,6 +34,10 @@ async function addLabels(labels: string[]): Promise<void> {
   if (!labels.length) {
     return
   }
+
+  console.log('before promise', new Date().getTime())
+  await new Promise((resolve) => setTimeout(resolve, 15000));
+  console.log('after promise', new Date().getTime())
 
   await client.issues.addLabels({
     owner: github.context.repo.owner,
@@ -49,7 +63,9 @@ async function removeLabels(
         return label.sync && !labels.includes(label.label)
       })
       .map(label => {
-        return client.issues
+        
+        return setTimeout(() => {
+          client.issues
           .removeLabel({
             owner: github.context.repo.owner,
             repo: github.context.repo.repo,
@@ -58,7 +74,8 @@ async function removeLabels(
           })
           .catch(ignored => {
             return undefined
-          })
+          });
+        }, 15000);
       })
   )
 }
